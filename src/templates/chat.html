@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Chat Interface</title>
+    <link rel="stylesheet" href="/static/style_caa.css">
+  </head>
+  <body>
+    <div id="webcrumbs">
+      <div class="chat-container">
+        <div class="chat-header">
+          <h1>Chat Interface</h1>
+        </div>
+        <div class="chat-messages" id="chat-history">
+          <!-- Сообщения чата отображаются здесь -->
+        </div>
+        <div class="chat-input">
+          <input id="user-input" type="text" placeholder="Введите сообщение..." />
+          <button id="send-button">Отправить</button>
+        </div>
+      </div>
+    </div>
+    
+    <script>
+      async function sendMessage() {
+        const input = document.getElementById('user-input');
+        const chatHistory = document.getElementById('chat-history');
+        const message = input.value;
+        if (!message) return;
+        // Добавляем сообщение пользователя
+        const userDiv = document.createElement('div');
+        userDiv.className = "message user-message";
+        userDiv.innerHTML = "<p>" + message + "</p>";
+        chatHistory.appendChild(userDiv);
+        input.value = "";
+        // Отправляем сообщение на сервер
+        const response = await fetch("/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ message: message })
+        });
+        const data = await response.json();
+        // Добавляем сообщение бота
+        const botDiv = document.createElement('div');
+        botDiv.className = "message bot-message";
+        botDiv.innerHTML = "<p>" + data.reply + "</p>";
+        chatHistory.appendChild(botDiv);
+        chatHistory.scrollTop = chatHistory.scrollHeight;
+      }
+      
+      document.getElementById('send-button').addEventListener('click', sendMessage);
+      document.getElementById('user-input').addEventListener('keyup', function(event) {
+        if (event.key === "Enter") {
+          sendMessage();
+        }
+      });
+    </script>
+  </body>
+</html> 

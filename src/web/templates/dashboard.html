@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Kenga AI Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/vue@2.6.14"></script>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body class="bg-gray-100">
+    <div id="app" class="container mx-auto px-4 py-8">
+        <!-- Navigation -->
+        <nav class="bg-white shadow-lg rounded-lg mb-8">
+            <div class="container mx-auto px-6 py-3">
+                <div class="flex items-center justify-between">
+                    <div class="text-xl font-bold">Kenga AI Dashboard</div>
+                    <div class="flex space-x-4">
+                        <button @click="activeTab = 'chat'" 
+                                :class="{'bg-blue-500 text-white': activeTab === 'chat'}"
+                                class="px-4 py-2 rounded">
+                            Chat
+                        </button>
+                        <button @click="activeTab = 'files'"
+                                :class="{'bg-blue-500 text-white': activeTab === 'files'}"
+                                class="px-4 py-2 rounded">
+                            Files
+                        </button>
+                        <button @click="activeTab = 'analytics'"
+                                :class="{'bg-blue-500 text-white': activeTab === 'analytics'}"
+                                class="px-4 py-2 rounded">
+                            Analytics
+                        </button>
+                        <button @click="activeTab = 'experiments'"
+                                :class="{'bg-blue-500 text-white': activeTab === 'experiments'}"
+                                class="px-4 py-2 rounded">
+                            Experiments
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Main Content -->
+        <div class="grid grid-cols-1 gap-8">
+            <!-- Chat Interface -->
+            <div v-if="activeTab === 'chat'" class="bg-white p-6 rounded-lg shadow-md">
+                <div class="flex flex-col h-[500px]">
+                    <div class="flex-1 overflow-y-auto mb-4 p-4 border rounded">
+                        <div v-for="msg in chatHistory" :key="msg.id"
+                             :class="{'text-right': msg.sender === 'user'}"
+                             class="mb-4">
+                            <div :class="{'bg-blue-100': msg.sender === 'user', 'bg-gray-100': msg.sender === 'bot'}"
+                                 class="inline-block p-3 rounded-lg">
+                                {{ msg.text }}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flex space-x-4">
+                        <textarea v-model="textInput"
+                                 class="flex-1 p-2 border rounded"
+                                 placeholder="Type your message..."></textarea>
+                        <button @click="sendMessage"
+                                class="bg-blue-500 text-white px-6 py-2 rounded hover:bg-blue-600">
+                            Send
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- File Analysis -->
+            <div v-if="activeTab === 'files'" class="bg-white p-6 rounded-lg shadow-md">
+                <div class="grid grid-cols-2 gap-6">
+                    <div>
+                        <h3 class="text-lg font-semibold mb-4">Upload Files</h3>
+                        <div class="border-dashed border-2 border-gray-300 p-8 text-center">
+                            <input type="file" @change="handleFileUpload" multiple class="hidden" ref="fileInput">
+                            <button @click="$refs.fileInput.click()"
+                                    class="bg-blue-500 text-white px-6 py-3 rounded hover:bg-blue-600">
+                                Choose Files
+                            </button>
+                            <p class="mt-2 text-sm text-gray-600">
+                                Supports images, videos, documents, and more
+                            </p>
+                        </div>
+                        <div class="mt-4">
+                            <h4 class="font-semibold mb-2">Uploaded Files:</h4>
+                            <ul class="space-y-2">
+                                <li v-for="file in uploadedFiles" :key="file.name"
+                                    class="flex justify-between items-center p-2 bg-gray-50 rounded">
+                                    <span>{{ file.name }}</span>
+                                    <button @click="analyzeFile(file)"
+                                            class="text-blue-500 hover:text-blue-700">
+                                        Analyze
+                                    </button>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div>
+                        <h3 class="text-lg font-semibold mb-4">Analysis Results</h3>
+                        <div class="border p-4 rounded min-h-[300px]">
+                            <div v-if="analyzing" class="text-center py-8">
+                                <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto"></div>
+                                <p class="mt-4">Analyzing file...</p>
+                            </div>
+                            <div v-else-if="analysisResults" v-html="analysisResults"></div>
+                            <div v-else class="text-gray-500 text-center py-8">
+                                Select a file to analyze
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Analytics Dashboard -->
+            <div v-if="activeTab === 'analytics'" class="bg-white p-6 rounded-lg shadow-md">
+                <div class="grid grid-cols-2 gap-6">
+                    <div>
+                        <h3 class="text-lg font-semibold mb-4">Model Performance</h3>
+                        <div id="performanceChart" style="height: 300px;"></div>
+                    </div>
+                    <div>
+                        <h3 class="text-lg font-semibold mb-4">Memory Usage</h3>
+                        <div id="memoryChart" style="height: 300px;"></div>
+                    </div>
+                    <div>
+                        <h3 class="text-lg font-semibold mb-4">Attention Visualization</h3>
+                        <div id="attentionMap" style="height: 300px;"></div>
+                    </div>
+                    <div>
+                        <h3 class="text-lg font-semibold mb-4">Layer Statistics</h3>
+                        <div id="layerStats" style="height: 300px;"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Experiment Management -->
+            <div v-if="activeTab === 'experiments'" class="bg-white p-6 rounded-lg shadow-md">
+                <div class="grid grid-cols-2 gap-6">
+                    <div>
+                        <h3 class="text-lg font-semibold mb-4">Experiments</h3>
+                        <div class="space-y-4">
+                            <div v-for="exp in experiments" :key="exp.id"
+                                 class="p-4 border rounded hover:bg-gray-50 cursor-pointer"
+                                 @click="selectExperiment(exp)">
+                                <div class="font-semibold">{{ exp.name }}</div>
+                                <div class="text-sm text-gray-600">{{ exp.description }}</div>
+                                <div class="mt-2 flex justify-between text-sm">
+                                    <span>Status: {{ exp.status }}</span>
+                                    <span>Loss: {{ exp.metrics.loss }}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div>
+                        <h3 class="text-lg font-semibold mb-4">Experiment Details</h3>
+                        <div v-if="selectedExperiment" class="space-y-4">
+                            <div class="p-4 border rounded">
+                                <h4 class="font-semibold">Configuration</h4>
+                                <pre class="mt-2 text-sm bg-gray-50 p-2 rounded">
+                                    {{ JSON.stringify(selectedExperiment.config, null, 2) }}
+                                </pre>
+                            </div>
+                            <div class="p-4 border rounded">
+                                <h4 class="font-semibold">Metrics</h4>
+                                <div id="experimentMetrics" style="height: 300px;"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        new Vue({
+            el: '#app',
+            data: {
+                activeTab: 'chat',
+                textInput: '',
+                chatHistory: [],
+                uploadedFiles: [],
+                analyzing: false,
+                analysisResults: null,
+                experiments: [],
+                selectedExperiment: null
+            },
+            methods: {
+                async sendMessage() {
+                    if (!this.textInput.trim()) return;
+                    
+                    this.chatHistory.push({
+                        id: Date.now(),
+                        sender: 'user',
+                        text: this.textInput
+                    });
+                    
+                    try {
+                        const response = await fetch('/api/chat', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ message: this.textInput })
+                        });
+                        const data = await response.json();
+                        
+                        this.chatHistory.push({
+                            id: Date.now(),
+                            sender: 'bot',
+                            text: data.response
+                        });
+                    } catch (error) {
+                        console.error('Error:', error);
+                    }
+                    
+                    this.textInput = '';
+                },
+                
+                async handleFileUpload(event) {
+                    const files = Array.from(event.target.files);
+                    this.uploadedFiles.push(...files);
+                },
+                
+                async analyzeFile(file) {
+                    this.analyzing = true;
+                    const formData = new FormData();
+                    formData.append('file', file);
+                    
+                    try {
+                        const response = await fetch('/api/analyze', {
+                            method: 'POST',
+                            body: formData
+                        });
+                        const data = await response.json();
+                        this.analysisResults = data.results;
+                    } catch (error) {
+                        console.error('Error:', error);
+                        this.analysisResults = 'Error analyzing file';
+                    }
+                    
+                    this.analyzing = false;
+                },
+                
+                async loadExperiments() {
+                    try {
+                        const response = await fetch('/api/experiments');
+                        const data = await response.json();
+                        this.experiments = data.experiments;
+                    } catch (error) {
+                        console.error('Error:', error);
+                    }
+                },
+                
+                selectExperiment(experiment) {
+                    this.selectedExperiment = experiment;
+                    this.updateExperimentCharts();
+                },
+                
+                updateExperimentCharts() {
+                    // Implement chart updates using Plotly or Chart.js
+                }
+            },
+            mounted() {
+                this.loadExperiments();
+                // Initialize charts
+            }
+        });
+    </script>
+</body>
+</html> 
